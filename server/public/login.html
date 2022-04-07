@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Login | COVID-19 Contact Tracing</title>
+    <link rel="stylesheet" href="https://unpkg.com/purecss@2.0.5/build/pure-min.css" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://unpkg.com/purecss@2.0.5/build/grids-responsive-min.css" />
+    <link rel="stylesheet" type="text/css" href="/stylesheets/style.css" />
+    <script src="https://kit.fontawesome.com/675dd24524.js" crossorigin="anonymous"></script>
+    <script src="/javascripts/login.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.12/dist/vue.js"></script>
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat&family=Roboto&display=swap" rel="stylesheet">
+    <script src="https://apis.google.com/js/platform.js" async defer></script>
+    <meta name="google-signin-client_id" content="236702098774-31knb831of37746gcs9js747kuneh8df.apps.googleusercontent.com">
+<body>
+    <div id="app" class="flex">
+        <div class="centred middle" v-cloak>
+            <main>
+                <!-- Registration page -->
+                <div class="centred" v-if="page == 'register'">
+                    <form class="pure-form pure-g centred details-form" onsubmit="return register();">
+                        <div class="pure-u-1">
+                            <img class="centred logo" src="/images/logo.webp" alt="logo">
+                        </div>
+
+                        <div class="pure-u-1">
+                            <h1>Create Account</h1>
+                            <hr />
+                        </div>
+
+                        <div class="pure-u-1">
+                            <h2>Personal Details</h2>
+                            <hr />
+                        </div>
+
+                        <!-- Personal details -->
+                        <div class="pure-u-1 pure-u-md-1-2">
+                            <div class="grid-pad">
+                                <label for="given-name">Given Name</label>
+                                <input id="given-name" name="given-name" type="text" class="full-width" v-model="user.givenName" required v-bind:disabled="open_id" />
+                            </div>
+                        </div>
+                        <div class="pure-u-1 pure-u-md-1-2">
+                            <div class="grid-pad">
+                                <label for="family-name">Family Name</label>
+                                <input id="family-name" name="family-name" type="text" class="full-width" v-model="user.familyName" required v-bind:disabled="open_id" />
+                            </div>
+                        </div>
+
+                        <div class="pure-u-1" >
+                            <div class="grid-pad">
+                                 <label for="register-email">Email</label>
+                                 <input id="register-email" name="register-email" type="email" class="full-width" v-model="user.email" required v-bind:disabled="open_id || health_official" />
+                             </div>
+                        </div>
+
+                        <div class="pure-u-1">
+                            <div class="grid-pad">
+                                <label for="phone">Phone</label>
+                                <input id="phone" name="phone" type="tel" class="full-width" v-model="user.phone" required />
+                            </div>
+                        </div>
+
+                        <div class="pure-u-1" v-show="!open_id">
+                            <hr />
+                        </div>
+
+                        <div class="pure-u-1" v-show="!open_id">
+                            <div class="grid-pad">
+                                <label for="register-password">New Password</label>
+                                <input id="register-password" name="register-password" type="password" class="full-width" v-model="user.password" v-bind:required="!open_id" />
+                            </div>
+                        </div>
+
+                        <div class="pure-u-1" v-show="!open_id">
+                            <div class="grid-pad">
+                                <label for="register-password-confirm">Confirm Password</label>
+                                <input id="register-password-confirm" name="register-password-confirm" type="password" class="full-width" oninput="validateRegisterPassword()" required v-bind:required="!open_id" />
+                            </div>
+                        </div>
+
+                        <div class="pure-u-1">
+                            <hr />
+                        </div>
+
+                        <!-- Display checkbox to register as a venue owner, unless the user is registering as a health official -->
+                        <div class="pure-u-1" v-show="!health_official">
+                            <div class="grid-pad">
+                                <input type="checkbox" name="venue-owner" id="venue-owner" v-model="venue_owner" />
+                                <label for="venue-owner">I am the owner of a venue</label>
+                            </div>
+                        </div>
+
+                        <div class="pure-u-1" v-if="venue_owner">
+                            <h2>Venue Details</h2>
+                            <hr />
+                        </div>
+
+                        <!-- Venue details -->
+                        <div class="pure-u-1" v-if="venue_owner">
+                            <div class="grid-pad">
+                                <label for="venue-name">Venue Name</label>
+                                <input id="venue-name" name="venue-name" type="text" class="full-width" v-model="venue.name" v-bind:required="venue_owner" />
+                            </div>
+                        </div>
+                        <div class="pure-u-1 pure-u-md-1-4" v-if="venue_owner">
+                            <div class="grid-pad">
+                                <label for="street-no">Street Number</label>
+                                <input id="street-no" name="street-no" type="text" class="full-width" v-model="venue.streetNo" v-bind:required="venue_owner" />
+                            </div>
+                        </div>
+
+                        <div class="pure-u-1 pure-u-md-3-4" v-if="venue_owner">
+                            <div class="grid-pad">
+                                <label for="street-name">Street Name</label>
+                                <input id="street-name" name="street-name" type="text" class="full-width" v-model="venue.streetName" v-bind:required="venue_owner" />
+                             </div>
+                        </div>
+
+                        <div class="pure-u-1 pure-u-md-1-2" v-if="venue_owner">
+                            <div class="grid-pad">
+                                <label for="city">Town/City</label>
+                                <input id="city" name="city" type="text" class="full-width" v-model="venue.city" v-bind:required="venue_owner" />
+                            </div>
+                        </div>
+
+                        <div class="pure-u-1 pure-u-md-1-4" v-if="venue_owner">
+                            <div class="grid-pad">
+                                <label for="postcode">Postcode</label>
+                                <input id="postcode" name="postcode" type="number" class="full-width" v-model="venue.postcode" v-bind:required="venue_owner" />
+                            </div>
+                        </div>
+
+                        <div class="pure-u-1 pure-u-md-1-4" v-if="venue_owner">
+                            <div class="grid-pad">
+                                <label for="state">State</label>
+                                <select id="state" name="state" class="full-width" v-model="venue.state" v-bind:required="venue_owner">
+                                    <option disabled value="">Please Select One</option>
+                                    <option value="ACT">Australian Capital Territory</option>
+                                    <option value="NSW">New South Wales</option>
+                                    <option value="NT">Northern Territory</option>
+                                    <option value="QLD">Queensland</option>
+                                    <option value="SA">South Australia</option>
+                                    <option value="TAS">Tasmania</option>
+                                    <option value="VIC">Victoria</option>
+                                    <option value="WA">Western Australia</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="pure-u-1">
+                            <div class="grid-pad">
+                                <button class="pure-button" type="button" onclick="back()">Back</button>
+                                <input type="submit" class="pure-button pure-button-primary right" value="Create Account" />
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <!-- Forgot password (reset password) page -->
+                <div class="login-form centred" v-else-if="page == 'forgot-password'">
+                    <img class="centred logo" src="/images/logo.webp" alt="logo">
+                    <h1 class="centre-text">Reset Password</h1>
+                    <br />
+                    <!-- Display if the user has not been emailed a password reset code yet -->
+                    <div v-if="reset_code_sent == false">
+                        <form class="pure-form pure-g" onsubmit="return sendPasswordResetCode();">
+                            <div class="pure-u-1">
+                                <div class="grid-pad">
+                                    <p>Enter your email address below, and you will be sent a code to reset the password for your account.</p>
+                                </div>
+                            </div>
+                            <div class="pure-u-1">
+                                <div class="grid-pad">
+                                    <input class="icon-input" type="email" name="reset-email" id="reset-email" v-model="reset_email" required />
+                                    <i class="fa fa-envelope"></i>
+                                </div>
+                            </div>
+                            <div class="pure-u-1">
+                                <div class="grid-pad">
+                                    <button class="pure-button" type="button" onclick="back()">Back</button>
+                                    <input class="pure-button-primary pure-button right" type="submit" value="Send Code" />
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <!-- Display once the user has received and verified their reset code -->
+                    <div v-else-if="reset_code_verified == true">
+                        <div class="pure-u-1">
+                            <div class="grid-pad">
+                                <p>Enter a new password for your account.</p>
+                            </div>
+                        </div>
+                        <form class="pure-form pure-g" onsubmit="return resetPassword();">
+                            <div class="pure-u-1" v-show="!open_id">
+                                <div class="grid-pad">
+                                    <label for="reset-password">New Password</label>
+                                    <input id="reset-password" name="reset-password" type="password" class="full-width" v-model="new_password" required />
+                                </div>
+                            </div>
+
+                            <div class="pure-u-1" v-show="!open_id">
+                                <div class="grid-pad">
+                                    <label for="reset-password-confirm">Confirm Password</label>
+                                    <input id="reset-password-confirm" name="reset-password-confirm" type="password" class="full-width" oninput="validateResetPassword()" required />
+                                </div>
+                            </div>
+                            <div class="pure-u-1">
+                                <div class="grid-pad">
+                                    <button class="pure-button" type="button" onclick="back()">Back</button>
+                                    <input class="pure-button pure-button-primary right" type="submit" value="Reset Password" />
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <!-- Display once a password reset code has been sent to the user -->
+                    <div v-else-if="reset_code_sent == true">
+                        <div class="pure-u-1">
+                            <div class="grid-pad">
+                                <p>A code has been sent to your email. Enter the code below to reset your password.</p>
+                            </div>
+                        </div>
+                        <form class="pure-form pure-g" onsubmit="return verifyPasswordResetCode();">
+                            <div class="pure-u-1">
+                                <div class="grid-pad">
+                                    <input class="icon-input" type="text" name="reset-code" id="reset-code" v-model="reset_code" required />
+                                    <i class="fa fa-lock"></i>
+                                </div>
+                            </div>
+                            <div class="pure-u-1">
+                                <div class="grid-pad">
+                                    <button class="pure-button" type="button" onclick="back()">Back</button>
+                                    <input class="pure-button pure-button-primary right" type="submit" value="Reset Password" />
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                <!-- Login page -->
+                <div class="login-form centred" v-show="page != 'register' && page != 'forgot-password'">
+                    <img class="centred logo" src="/images/logo.webp" alt="logo">
+                    <h1 class="centre-text">COVID-19 CHECK-IN</h1>
+                    <br />
+                    <form class="pure-form pure-g" onsubmit="return validateLogin();">
+                        <div class="pure-u-1">
+                            <div class="grid-pad">
+                                <label for="email">Email</label>
+                                <input class="icon-input" type="email" name="email" id="email" required />
+                                <i class="fa fa-envelope"></i>
+                            </div>
+                        </div>
+                        <div class="pure-u-1">
+                            <div class="grid-pad">
+                                <label for="password">Password</label>
+                                <input class="icon-input" type="password" name="password" id="password" required />
+                                <i class="fa fa-lock"></i>
+                            </div>
+                        </div>
+                        <div class="pure-u-1">
+                            <div class="grid-pad">
+                                <input class="left" type="checkbox" name="remember" id="remember"/>
+                                <label for="remember">Remember Me</label>
+                                <input class="pure-button pure-button-primary right" type="submit" value="Login" />
+                            </div>
+                        </div>
+                        <div class="pure-u-1-2">
+                            <div class="grid-pad">
+                                <a href="#forgot-password">Forgot your password?</a>
+                            </div>
+                        </div>
+                        <div class="pure-u-1-2">
+                            <div class="grid-pad">
+                                <span class="right">Not Registered? <a href="#register">Register</a></span>
+                            </div>
+                        </div>
+                    </form>
+
+                    <div class="separator full-width"><span>or</span></div>
+
+                    <!-- Google sign in -->
+                    <p class="centre-text">Sign in with your Google account</p>
+                    <div class="centred flex-centre">
+                        <div class="g-signin2" data-onsuccess="onSignIn"></div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+</body>
+</html>
