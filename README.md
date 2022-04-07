@@ -7,8 +7,8 @@ Application Installation and Setup
 
 
 Important Files
-SQL Tables.sql – SQL create table queries for the web application database.
-SQL Queries.sql – Draft SQL queries for required web application functionality (as used in server 
+- SQL Tables.sql – SQL create table queries for the web application database.
+- SQL Queries.sql – Draft SQL queries for required web application functionality (as used in server 
 routes).
-accounts.txt – Login details for a user of each account type (user, venue owner, health official).
-server/database.sql – Backup of the final web application database.
+- accounts.txt – Login details for a user of each account type (user, venue owner, health official).
+- server/database.sql – Backup of the final web application database.
