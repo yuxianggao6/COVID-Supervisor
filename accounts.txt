@@ -1,0 +1,11 @@
+Admin/Health Official:
+Email: admin@test.com
+Password: test
+
+Venue Owner:
+Email: owner@test.com
+Password: test
+
+User:
+Email: user@test.com
+Password: test
