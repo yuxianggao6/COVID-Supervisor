@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Check-In(Printable) | COVID-19 Contact Tracing</title>
+    <link rel="stylesheet" href="https://unpkg.com/purecss@2.0.5/build/pure-min.css" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://unpkg.com/purecss@2.0.5/build/grids-responsive-min.css" />
+    <link rel="stylesheet" type="text/css" href="/stylesheets/style.css" />
+    <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
+    <script src="/javascripts/printable-check-in-page.js" defer></script>
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat&family=Roboto&display=swap" rel="stylesheet">
+</head>
+<body>
+    <main id="checkin">
+        <img class="centred logo" src="/images/logo.webp" alt="Check-in logo">
+        <br />
+        <h1 class="centre-text">COVID-19 Check-In</h1>
+        <br />
+
+        <!-- QR code that points to the check-in page -->
+        <div id='qr' class="centred"></div>
+
+        <br />
+        <h1 class="centre-text" id='code'>ABCDE</h1>
+        <br />
+        <h2 class="centre-text" id='venue-name'>My Venue Name</h2>
+        <br />
+        <h3 class="centre-text" id='venue-address'>My Venue Name</h3>
+    </main>
+</body>
+</html>

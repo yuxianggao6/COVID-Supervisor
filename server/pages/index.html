@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>COVID-19 Contact Tracing</title>
+    <link rel="stylesheet" href="https://unpkg.com/purecss@2.0.5/build/pure-min.css" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://unpkg.com/purecss@2.0.5/build/grids-responsive-min.css" />
+    <link rel="stylesheet" type="text/css" href="/stylesheets/style.css" />
+    <script src="https://kit.fontawesome.com/675dd24524.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.12/dist/vue.js"></script>
+    <script src="/javascripts/main.js" defer></script>
+    <script src="/javascripts/google-auth.js"></script>
+    <link rel="preconnect" href="https://fonts.gstatic.com"/>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat&family=Roboto&display=swap" rel="stylesheet"/>
+    <script src='https://api.mapbox.com/mapbox-gl-js/v2.1.1/mapbox-gl.js'></script>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v2.1.1/mapbox-gl.css' rel='stylesheet' />
+    <meta name="google-signin-client_id" content="236702098774-31knb831of37746gcs9js747kuneh8df.apps.googleusercontent.com"/>
+    <script onload="onOpenIdLoad();" src="https://apis.google.com/js/platform.js" async defer></script>
+<body>
+    <div id='app' v-cloak>
+        <nav>
+            <!-- Toggle visibility of pages in navigation menu, based on the type of user that is logged in -->
+            <ul class="pure-menu-list">
+                <li class="pure-menu-item">
+                    <a href="/#/dashboard" class="pure-menu-link"><i class="fas fa-chart-line"></i><br />Dashboard</a>
+                </li>
+                <li class="pure-menu-item">
+                    <a href="/#/check-in" class="pure-menu-link"><i class="fas fa-clipboard-check"></i><br />Check-In</a>
+                </li>
+                <li class="pure-menu-item">
+                    <a href="/#/check-in-history" class="pure-menu-link"><i class="fas fa-tasks"></i><br />Check-In History</a>
+                </li>
+                <li class="pure-menu-item">
+                    <a href="/#/hotspots" class="pure-menu-link"><i class="fas fa-exclamation-circle"></i><br />Hotspots</a>
+                </li>
+                <li class="pure-menu-item">
+                    <a href="/#/account-details" class="pure-menu-link"><i class="fas fa-user"></i><br />Account</a>
+                </li>
+                <li class="pure-menu-item">
+                    <a href="/#/settings" class="pure-menu-link"><i class="fas fa-cog"></i><br />Settings</a>
+                </li>
+                <li class="pure-menu-item" v-if="user.accountType == 'venue-owner'">
+                    <a href="/#/venue-check-in-history" class="pure-menu-link"><i class="fas fa-notes-medical"></i><br />Venue Check-in<br>History</a>
+                </li>
+                <li class="pure-menu-item" v-if="user.accountType == 'venue-owner'">
+                    <a href="/manager/check-in-printable.html" class="pure-menu-link" target="_blank"><i class="fas fa-print"></i><br />Print<br />Check-in Page</a>
+                </li>
+                 <li class="pure-menu-item" v-if="user.accountType == 'venue-owner'">
+                    <a href="/#/venue-details" class="pure-menu-link"><i class="fas fa-hotel"></i><br />Venue Details</a>
+                </li>
+                <li class="pure-menu-item" v-if="user.accountType == 'health-official'">
+                    <a href="/#/manage-users" class="pure-menu-link"><i class="far fa-address-book"></i><br />Manage Users</a>
+                </li>
+                <li class="pure-menu-item" v-if="user.accountType == 'health-official'">
+                    <a href="/#/manage-venues" class="pure-menu-link"><i class="fas fa-hotel"></i><br />Manage Venues</a>
+                </li>
+                 <li class="pure-menu-item" v-if="user.accountType == 'health-official'">
+                    <a href="/#/manage-hotspots" class="pure-menu-link"><i class="fas fa-exclamation-triangle"></i><br />Manage<br />Hotspots</a>
+                </li>
+                <li class="pure-menu-item" v-if="user.accountType == 'health-official'">
+                    <a href="/#/register-health-official" class="pure-menu-link"><i class="fas fa-user-plus"></i><br />Register Health<br />Official</a>
+                </li>
+            </ul>
+        </nav>
+        <header>
+            <!-- Mobile navigation menu -->
+            <button onclick="toggleNavMenu()" id="nav-menu" class="pure-button left"><i class="fas fa-bars"></i></button>
+
+            <!-- Sign out button -->
+            <button class='pure-button pure-button-primary sign-out' onclick="signOut()">Sign Out</button>
+
+            <!-- Site name and logo -->
+            <a href="/#/dashboard" class="left">
+                <img class="main-logo" src="/images/logo.webp" alt="logo">
+            </a>
+            <h1 class="left">COVID-19 Check-In</h1>
+        </header>
+        <div class='flex'>
+            <main class="main-content">
+                <!-- User check-in history page -->
+                <div v-show="getCheckInHistory">
+                    <h1>Check-In History</h1>
+                    <hr />
+
+                    <div id='check-in-map'></div>
+
+                    <hr />
+
+                    <!-- Display check-in history in a table -->
+                    <table class="pure-table pure-table-striped full-width">
+                        <tr>
+                            <th>Venue</th>
+                            <th>Address</th>
+                            <th>Date</th>
+                            <th>Time</th>
+                        </tr>
+                        <tr v-for="c in checkins">
+                            <td>{{ c.name }}</td>
+                            <td>{{ c.address }}</td>
+                            <td>{{ c.date }}</td>
+                            <td>{{ c.time }}</td>
+                        </tr>
+                    </table>
+                </div>
+                <!-- Hotspot page -->
+                <div v-show="getHotspots">
+                    <h1>Current Hotspots</h1>
+                    <hr />
+
+                    <!-- Notify the user whether or not they have been to an active hotspot venue -->
+                    <div class="pure-g">
+                        <div class="pure-u-1 pure-u-md-1">
+                            <div class="dashboard-card" v-if="hotspot_visit == 0">
+                                <i class="far fa-check-circle notification-icon good left"></i><div class="left"><p>You have not been to an active COVID-19 hotspot.</p></div>
+                            </div>
+                            <div class="dashboard-card" v-else-if="hotspot_visit == 1">
+                                <p><i class="fas fa-exclamation-triangle notification-icon bad"></i>You have been to a COVID-19 hotspot venue. Please isolate immediately and wait for our contact tracers to get in touch with you.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr />
+
+                    <div id='hotspot-map'></div>
+
+                    <hr />
+
+                    <!-- Display hotspot venues in a table -->
+                    <h2>Hotspot Venues</h2>
+                    <table class="pure-table pure-table-striped full-width">
+                        <tr>
+                            <th>Venue</th>
+                            <th>Address</th>
+                            <th>Start</th>
+                            <th>End</th>
+                        </tr>
+                        <tr v-for="venue in hotspot_venues">
+                            <td>{{ venue.name }}</td>
+                            <td>{{ venue.address }}</td>
+                            <td>{{ venue.start }}</td>
+                            <td>{{ venue.end }}</td>
+                        </tr>
+                    </table>
+
+                    <hr />
+
+                    <!-- Display hotspot areas in a table -->
+                    <h2>Hotspot Areas</h2>
+                    <table class="pure-table pure-table-striped full-width">
+                        <tr>
+                            <th>City</th>
+                            <th>State</th>
+                            <th>Start</th>
+                            <th>End</th>
+                        </tr>
+                        <tr v-for="area in hotspot_areas">
+                            <td>{{ area.name }}</td>
+                            <td>{{ area.state }}</td>
+                            <td>{{ area.start_time }}</td>
+                            <td>{{ area.end_time }}</td>
+                        </tr>
+                    </table>
+                </div>
+                <!-- Check-in page -->
+                <div v-if="getCheckIn">
+                    <h1>Check-In</h1>
+                    <hr />
+                    <form class="pure-form" onsubmit="return checkIn();">
+                        <div class="pure-g">
+                            <span class="pure-u-1 pure-u-md-1-4">Check-in code:</span>
+                            <input type="text" class="pure-u-1 pure-u-md-1-4" v-model="code" required />
+                        </div>
+                        <div class="pure-g">
+                            <div class="pure-u-1 pure-u-md-1-4"></div>
+                            <input type="submit" class="pure-u-1 pure-u-md-1-4 pure-button pure-button-primary" />
+                        </div>
+                    </form>
+
+                    <!-- Show the user which venue they are about to check-in to, and let them know if their check-in was successful -->
+                    <div class="dashboard-card" v-if="checkin_status == 2">
+                        <i class="far fa-check-circle notification-icon good left"></i><div class="left"><p>You Just Checked-In Successfully!</p><p>Venue: {{ checkin.venue }}<br />Address: {{ checkin.address }}<br />Time: {{ checkin.time }}</p></div>
+                    </div>
+                    <div class="dashboard-card" v-if="checkin_status == 1">
+                        <i class="fas fa-spinner notification-icon neutral left"></i><div class="left"><p>You are about to check-in to:</p><p>Venue: {{ pending_checkin.venue }}<br />Address: {{ pending_checkin.address }}</p>
+                            <button class="pure-button pure-button-primary" onclick="confirmCheckIn()">Check-In</button>
+                        </div>
+                    </div>
+                    <div class="dashboard-card" v-if="checkin_status == 0">
+                        <i class="fas fa-exclamation-triangle notification-icon bad left"></i><div class="left"><p>You Did Not Check-In Successfully. Please Try Again.</p></div>
+                    </div>
+                </div>
+                <!-- Account details page -->
+                <div v-else-if="page == 'account-details'">
+                    <h1>Account Details</h1>
+                    <hr />
+
+                    <!-- Personal details -->
+                    <form class="pure-form pure-g details-form" onsubmit="return applyUserDetails()">
+                        <div class="pure-u-1">
+                            <div class="grid-pad">
+                                <h2>Contact Details</h2>
+                                <hr />
+                            </div>
+                        </div>
+                        <div class="pure-u-1 pure-u-md-1-2">
+                            <div class="grid-pad">
+                                <label for="given-name">Given Name</label>
+                                <input id="given-name" name="given-name" type="text" class="full-width" v-model="user.givenName" />
+                            </div>
+                        </div>
+                        <div class="pure-u-1 pure-u-md-1-2">
+                            <div class="grid-pad">
+                                <label for="family-name">Family Name</label>
+                                <input id="family-name" name="family-name" type="text" class="full-width" v-model="user.familyName" />
+                            </div>
+                        </div>
+
+                        <div class="pure-u-1" >
+                            <div class="grid-pad">
+                                 <label for="email">Email</label>
+                                 <input id="email" name="email" type="email" class="full-width" v-model="user.email" />
+                             </div>
+                        </div>
+
+                        <div class="pure-u-1">
+                            <div class="grid-pad">
+                                <label for="phone">Phone</label>
+                                <input id="phone" name="phone" type="tel" class="full-width" v-model="user.phone" />
+                            </div>
+                        </div>
+
+                        <div class="pure-u-1">
+                            <div class="grid-pad">
+                                <input type="submit" class="pure-button pure-button-primary right" value="Apply Changes" />
+                                <button class="pure-button right" type="button" onclick="revertUserDetails();">Revert</button>
+                            </div>
+                        </div>
+                    </form>
+                    <br />
+
+                    <!-- Change account password -->
+                    <form class="pure-form pure-g details-form" onsubmit="return applyUserPassword()">
+                        <div class="pure-u-1">
+                            <div class="grid-pad">
+                                <h2>Change Account Password</h2>
+                                <hr />
+                            </div>
+                        </div>
+                        <div class="pure-u-1">
+                            <div class="grid-pad">
+                                <label for="password">New Password</label>
+                                <input id="password" name="password" type="password" class="full-width" required />
+                            </div>
+                        </div>
+
+                        <div class="pure-u-1">
+                            <div class="grid-pad">
+                                <label for="password-confirm">Confirm Password</label>
+                                <input id="password-confirm" name="password-confirm" type="password" class="full-width" oninput="validatePassword()" required />
+                            </div>
+                        </div>
+
+                        <div class="pure-u-1">
+                            <div class="grid-pad">
+                                <input type="submit" class="pure-button pure-button-primary right" value="Apply Changes" />
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <!-- Settings page -->
+                <div v-else-if="page == 'settings'">
+                    <h1>Settings</h1>
+                    <hr />
+                    <form class="pure-form details-form" onsubmit="return applySettings();">
+                        <h2>Dashboard Customisation</h2>
+                        <hr />
+                        <div>
+                            <input id="dash-cases" name="dash-cases" type="checkbox" v-model="settings.dashCases" />
+                            <label for="dash-cases">Cases</label>
+                            <br />
+
+                            <input id="dash-info" name="dash-info" type="checkbox" v-model="settings.dashInfo" />
+                            <label for="dash-info">Important Info</label>
+                            <br />
+
+                            <input id="dash-deaths" name="dash-deaths" type="checkbox" v-model="settings.dashDeaths" />
+                            <label for="dash-deaths">Deaths</label>
+                        </div>
+
+                        <div class="pure-u-1">
+                            <div class="grid-pad">
+                                <input type="submit" class="pure-button pure-button-primary right" value="Apply Changes" />
+                                <button class="pure-button right" type="button" onclick="revertSettings();">Revert</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <!-- Venue check-in history page -->
+                <div v-else-if="getVenueCheckInHistory">
+                    <h1>Venue Check-In History</h1>
+                    <hr />
+                    <div class="pure-u-1 pure-u-md-1-3">
+                        <!-- Display check-ins in a table -->
+                        <table class="pure-table pure-table-striped full-width">
+                            <tr>
+                                <th>Given Name</th>
+                                <th>Family Name</th>
+                                <th>Date</th>
+                                <th>Time</th>
+                            </tr>
+                            <tr v-for="c in checkins">
+                                <td>{{ c.givenName }}</td>
+                                <td>{{ c.familyName }}</td>
+                                <td>{{ c.date }}</td>
+                                <td>{{ c.time }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+                <!-- Venue details page -->
+                <div v-else-if="getVenueDetails">
+                    <h1>Venue Details</h1>
+                    <hr/>
+                    <form class="pure-form pure-g details-form" onsubmit="return applyVenueDetails()">
+                        <div class="pure-u-1">
+                            <div class="grid-pad">
+                                <label for="venue-name">Venue Name</label>
+                                <input id="venue-name" name="venue-name" type="text" class="full-width" v-model="venue.name" />
+                            </div>
+                        </div>
+                        <div class="pure-u-1 pure-u-md-1-4">
+                            <div class="grid-pad">
+                                <label for="street-no">Street Number</label>
+                                <input id="street-no" name="street-no" type="text" class="full-width" v-model="venue.street_number" />
+                            </div>
+                        </div>
+
+                        <div class="pure-u-1 pure-u-md-3-4" >
+                            <div class="grid-pad">
+                                <label for="street-name">Street Name</label>
+                                <input id="street-name" name="street-name" type="text" class="full-width" v-model="venue.street_name" />
+                             </div>
+                        </div>
+
+                        <div class="pure-u-1 pure-u-md-1-2">
+                            <div class="grid-pad">
+                                <label for="city">Town/City</label>
+                                <input id="city" name="city" type="text" class="full-width" v-model="venue.city" />
+                            </div>
+                        </div>
+
+                        <div class="pure-u-1 pure-u-md-1-4">
+                            <div class="grid-pad">
+                                <label for="postcode">Postcode</label>
+                                <input id="postcode" name="postcode" type="number" class="full-width" v-model="venue.postcode"/>
+                            </div>
+                        </div>
+
+                        <div class="pure-u-1 pure-u-md-1-4">
+                            <div class="grid-pad">
+                                <label for="state">State</label>
+                                <select id="state" name="state" class="full-width" v-model="venue.state">
+                                    <option disabled value="">Please Select One</option>
+                                    <option value="ACT">Australian Capital Territory</option>
+                                    <option value="NSW">New South Wales</option>
+                                    <option value="NT">Northern Territory</option>
+                                    <option value="QLD">Queensland</option>
+                                    <option value="SA">South Australia</option>
+                                    <option value="TAS">Tasmania</option>
+                                    <option value="VIC">Victoria</option>
+                                    <option value="WA">Western Australia</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="pure-u-1">
+                            <div class="grid-pad">
+                                <button class="pure-button pure-button-primary right">Apply Changes</button>
+                                <button class="pure-button right" onclick="revertVenueDetails()">Revert</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <!-- Hotspot management page -->
+                <div v-else-if="getHotspotManagement">
+                    <h1>Manage Hotspots</h1>
+                    <hr />
+
+                    <!-- Select whether hotspot areas or hotspot venues are shown -->
+                    <button class="horizontal-tab left" v-on:click="areas = false;" v-bind:class="areas ? '' : 'active'">Hotspot Venues</button>
+                    <button class="horizontal-tab left" v-on:click="areas = true;" v-bind:class="areas ? 'active' : ''">Hotspot Areas</button>
+
+                    <!-- Show hotspot areas -->
+                    <div v-if="areas" class="clear-float">
+                        <h2>Hotspot Areas</h2>
+                        <hr />
+
+                        <form class="pure-form pure-g" onsubmit="return createHotspotArea();">
+                            <div class="pure-u-1-8">
+                                <div class="grid-pad">
+                                    <label for="area-city">City</label>
+                                    <input class="full-width" type="text" name="city" id="area-city" v-model="hotspot_area_details.city" />
+                                </div>
+                            </div>
+                            <div class="pure-u-1-8">
+                                <div class="grid-pad">
+                                    <label for="area-state">State</label>
+                                    <select id="area-state" name="area-state" class="full-width" v-model="hotspot_area_details.state">
+                                        <option disabled value="">Please Select One</option>
+                                        <option value="ACT">Australian Capital Territory</option>
+                                        <option value="NSW">New South Wales</option>
+                                        <option value="NT">Northern Territory</option>
+                                        <option value="QLD">Queensland</option>
+                                        <option value="SA">South Australia</option>
+                                        <option value="TAS">Tasmania</option>
+                                        <option value="VIC">Victoria</option>
+                                        <option value="WA">Western Australia</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="pure-u-1-8">
+                                <div class="grid-pad">
+                                    <label for="area-start-date">Start Date</label>
+                                    <input class="full-width" type="date" name="start-date" id="area-start-date" v-model="hotspot_area_details.start_date" />
+                                </div>
+                            </div>
+                            <div class="pure-u-1-8">
+                                <div class="grid-pad">
+                                    <label for="area-start-time">Start Time</label>
+                                    <input class="full-width" type="time" name="start-time" id="area-start-time" v-model="hotspot_area_details.start_time" />
+                                </div>
+                            </div>
+                            <div class="pure-u-1-8">
+                                <div class="grid-pad">
+                                    <label for="area-end-date">End Date</label>
+                                    <input class="full-width" type="date" name="end-date" id="area-end-date" v-model="hotspot_area_details.end_date" />
+                                </div>
+                            </div>
+                            <div class="pure-u-1-8">
+                                <div class="grid-pad">
+                                    <label for="area-end-time">End Time</label>
+                                <input class="full-width" type="time" name="end-time" id="area-end-time" v-model="hotspot_area_details.end_time" />
+                                </div>
+                            </div>
+                            <div class="pure-u-1-4">
+                                <div class="grid-pad">
+                                    <br />
+                                    <input class="pure-button pure-button-primary pure-u-1-4 full-width" type="submit" value="Create Hotspot" />
+                                </div>
+                            </div>
+                        </form>
+
+                        <hr />
+
+                        <!-- Show hotspot areas in a table -->
+                        <table class="pure-table pure-table-striped full-width">
+                            <tr>
+                                <th>Town/City</th>
+                                <th>Postcode</th>
+                                <th>Start Date</th>
+                                <th>Start Time</th>
+                                <th>End Date</th>
+                                <th>End Time</th>
+                                <th>Management</th>
+                            </tr>
+                            <tr v-for="hotspot in manage_hotspot_areas">
+                                <td>{{ hotspot.name }}</td>
+                                <td>{{ hotspot.state }}</td>
+                                <td>{{ hotspot.start_date }}</td>
+                                <td>{{ hotspot.start_time }}</td>
+                                <td>{{ hotspot.end_date }}</td>
+                                <td>{{ hotspot.end_time }}</td>
+                                <td>
+                                    <button class="pure-button" v-on:click="update_hotspot(hotspot, false)">Manage</button>
+                                    <button class="pure-button close" v-on:click="removeHotspotArea(hotspot.hotspot_id)">X</button>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                    <!-- Show hotspot venues -->
+                    <div v-else class="clear-float">
+                        <h2>Hotspot Venues</h2>
+                        <hr />
+
+                        <form class="pure-form pure-g" onsubmit="return searchHotspot();">
+                            <div class="pure-u-1 pure-u-md-1-2">
+                                <label for="hotspot-search-term">Search Term</label>
+                                <br />
+                                <input id="hotspot-search-term" type="search" v-model="search_data_hotspot.term" name="hotspot-search-term" class="pure-u-1" />
+                            </div>
+                            <div class="pure-u-1 pure-u-md-1-4">
+                                <label for="hotspot-search-by">Search By</label>
+                                <br />
+                                <select id="hotspot-search-by" name="hotspot-search-by" class="pure-u-1" v-model="search_data_hotspot.by">
+                                    <option value="name">Venue Name</option>
+                                    <option value="streetName">Street Name</option>
+                                    <option value="city">Town/City</option>
+                                    <option value="postcode">Postcode</option>
+                                    <option value="state">State</option>
+                                </select>
+                            </div>
+                            <div class="pure-u-1 pure-u-md-1-4">
+                                <br />
+                                <input class="pure-button pure-button-primary pure-u-1" type="submit" value="Search" />
+                            </div>
+                        </form>
+
+                        <hr />
+
+                        <!-- Show hotspot venues in a table -->
+                        <table class="pure-table pure-table-striped full-width">
+                            <tr>
+                                <th>Venue Name</th>
+                                <th>Address</th>
+                                <th>Start Date</th>
+                                <th>Start Time</th>
+                                <th>End Date</th>
+                                <th>End Time</th>
+                                <th>Management</th>
+                            </tr>
+                            <tr v-for="hotspot in manage_hotspot_venues">
+                                <td>{{ hotspot.name }}</td>
+                                <td>{{ hotspot.address }}</td>
+                                <td>{{ hotspot.start_date }}</td>
+                                <td>{{ hotspot.start_time }}</td>
+                                <td>{{ hotspot.end_date }}</td>
+                                <td>{{ hotspot.end_time }}</td>
+                                <td>
+                                    <button class="pure-button" v-on:click="update_hotspot(hotspot, true)">Manage</button>
+                                    <button class="pure-button close" v-on:click="removeHotspotVenue(hotspot.hotspot_id)">X</button>
+                                </td>
+                            </tr>
+                        </table>
+                        <hr />
+
+                        <!-- Controls to change number and page of hotspots shown on the page at once -->
+                        <form class="pure-form pure-g" onsubmit="return false;">
+                            <div class="pure-u-1">
+                                <input id="hotspot-page-size" class="right" name="hotspot-page-size" type="number" v-model="page_size" onchange="setHotspotPage(0)" min="1"  max="100" />
+                                <label for="hotspot-page-size" class="right">Results per Page: </label>
+                            </div>
+
+                            <div class="pure-u-1-5"></div>
+                            <button type="button" class="pure-button pure-u-1-5" onclick="setHotspotPage(-1)">&lt;</button>
+                            <input class="pure-u-1-5" type="number" v-model="pg" onchange="setHotspotPage(0)" min="1" />
+                            <button type="button" class="pure-button pure-u-1-5" onclick="setHotspotPage(1)">&gt;</button>
+                            <div class="pure-u-1-5"></div>
+                        </form>
+                    </div>
+
+                    <!-- Show controls to change timeframe for the selected hotspot -->
+                    <div class="darken-background" v-if="updating_hotspot">
+                        <div class="details-form popup-card">
+                            <h1 class="left">Create Hotspot</h1>
+                            <button class="pure-button right close" onclick="stopUpdatingHotspot();">X</button>
+                            <form class="pure-form pure-g clear-float" onsubmit="return submitHotspotUpdate();">
+                                <div class="pure-u-1 pure-u-md-1-2">
+                                    <div class="grid-pad">
+                                        <label for="hotspot-update-start-date">Start Date</label>
+                                        <input id="hotspot-update-start-date" name="hotspot-update-start-date" type="date" class="full-width" v-model="hotspot_update.start_date" />
+                                    </div>
+                                </div>
+                                <div class="pure-u-1 pure-u-md-1-2">
+                                    <div class="grid-pad">
+                                        <label for="hotspot-update-start-time">Start Time</label>
+                                        <input id="hotspot-update-start-time" name="hotspot-update-start-time" type="time" class="full-width" v-model="hotspot_update.start_time" />
+                                    </div>
+                                </div>
+                                <div class="pure-u-1 pure-u-md-1-2">
+                                    <div class="grid-pad">
+                                        <label for="hotspot-update-end-date">End Date</label>
+                                        <input id="hotspot-update-end-date" name="hotspot-update-end-date" type="date" class="full-width" v-model="hotspot_update.end_date" />
+                                    </div>
+                                </div>
+                                <div class="pure-u-1 pure-u-md-1-2">
+                                    <div class="grid-pad">
+                                        <label for="hotspot-update-end-time">End Time</label>
+                                        <input id="hotspot-update-end-time" name="hotspot-update-end-time" type="time" class="full-width" v-model="hotspot_update.end_time" />
+                                    </div>
+                                </div>
+
+                                <div class="pure-u-1">
+                                    <div class="grid-pad">
+                                        <input type="submit" class="pure-button pure-button-primary right" value="Update Hotspot" />
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <!-- User management page -->
+                <div v-else-if="page == 'manage-users'">
+                    <h1>Manage Users</h1>
+                    <hr />
+
+                    <!-- Controls to search for users -->
+                    <form class="pure-form pure-g" onsubmit="return search();">
+                        <div class="pure-u-1 pure-u-md-1-2">
+                            <label for="user-search-term">Search Term</label>
+                            <br />
+                            <input id="user-search-term" type="search" v-model="search_data_user.term" name="user-search-term" class="pure-u-1" />
+                        </div>
+                        <div class="pure-u-1 pure-u-md-1-4">
+                            <label for="user-search-by">Search By</label>
+                            <br />
+                            <select id="user-search-by" name="user-search-by" class="pure-u-1" v-model="search_data_user.by">
+                                <option value="givenName">Given Name</option>
+                                <option value="familyName">Family Name</option>
+                                <option value="email">Email Address</option>
+                                <option value="phone">Phone Number</option>
+                            </select>
+                        </div>
+                        <div class="pure-u-1 pure-u-md-1-4">
+                            <br />
+                            <input class="pure-button pure-button-primary pure-u-1" type="submit" value="Search" />
+                        </div>
+                    </form>
+                    <hr />
+
+                    <!-- Display users meeting search criteria in a table -->
+                    <table class="pure-table pure-table-striped full-width">
+                        <tr>
+                            <th>Given Name</th>
+                            <th>Family Name</th>
+                            <th>Email Address</th>
+                            <th>Phone Number</th>
+                            <th>Management</th>
+                        </tr>
+                        <tr v-for="(user, index) in users">
+                            <td>{{ user.givenName }}</td>
+                            <td>{{ user.familyName }}</td>
+                            <td>{{ user.email }}</td>
+                            <td>{{ user.phone }}</td>
+                            <td>
+                                <button class="pure-button" v-on:click="manage_user(index)">Manage</button>
+                                <button class="pure-button" v-on:click="view_checkin_history(user.user_id)">Check-in History</button>
+                            </td>
+                        </tr>
+                    </table>
+                    <hr />
+
+                    <!-- Controls to change number and page of users shown on the page at once -->
+                    <form class="pure-form pure-g" onsubmit="return false;">
+                        <div class="pure-u-1">
+                            <input id="user-page-size" class="right" name="user-page-size" type="number" v-model="page_size" onchange="setPage(0)" min="1"  max="100" />
+                            <label for="user-page-size" class="right">Results per Page: </label>
+                        </div>
+
+                        <div class="pure-u-1-5"></div>
+                        <button type="button" class="pure-button pure-u-1-5" onclick="setPage(-1)">&lt;</button>
+                        <input class="pure-u-1-5" type="number" v-model="pg" onchange="setPage(0)" min="1" />
+                        <button type="button" class="pure-button pure-u-1-5" onclick="setPage(1)">&gt;</button>
+                        <div class="pure-u-1-5"></div>
+                    </form>
+
+                    <!-- Show contact information for the selected user -->
+                    <div class="darken-background" v-if="managing_user">
+                        <div class="details-form popup-card">
+                            <h1 class="left">Account Details</h1>
+                            <button class="pure-button right close" onclick="stopManagingUser();">X</button>
+                            <form class="pure-form pure-g clear-float" onsubmit="return updateUserDetails();">
+                                <div class="pure-u-1 pure-u-md-1-2">
+                                    <div class="grid-pad">
+                                        <label for="manage-user-given-name">Given Name</label>
+                                        <input id="manage-user-given-name" name="manage-user-given-name" type="text" class="full-width" v-model="active_user.givenName" required />
+                                    </div>
+                                </div>
+                                <div class="pure-u-1 pure-u-md-1-2">
+                                    <div class="grid-pad">
+                                        <label for="manage-user-family-name">Family Name</label>
+                                        <input id="manage-user-family-name" name="manage-user-family-name" type="text" class="full-width" v-model="active_user.familyName" required />
+                                    </div>
+                                </div>
+
+                                <div class="pure-u-1" >
+                                    <div class="grid-pad">
+                                         <label for="manage-user-email">Email</label>
+                                         <input id="manage-user-email" name="manage-user-email" type="email" class="full-width" v-model="active_user.email" required />
+                                     </div>
+                                </div>
+
+                                <div class="pure-u-1">
+                                    <div class="grid-pad">
+                                        <label for="manage-user-phone">Phone</label>
+                                        <input id="manage-user-phone" name="manage-user-phone" type="tel" class="full-width" v-model="active_user.phone" required />
+                                    </div>
+                                </div>
+
+                                <div class="pure-u-1">
+                                    <div class="grid-pad">
+                                        <input type="submit" class="pure-button pure-button-primary right" value="Apply Changes" />
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Show check-ins for the selected user -->
+                    <div class="darken-background" v-if="viewing_checkins">
+                        <div class="details-form popup-card">
+                            <h1 class="left">Check-in History</h1>
+                            <button class="pure-button right close" onclick="stopViewingCheckins();">X</button>
+                            <table class="pure-table pure-table-striped full-width">
+                                <tr>
+                                    <th>Venue</th>
+                                    <th>Address</th>
+                                    <th>Date</th>
+                                    <th>Time</th>
+                                </tr>
+                                <tr v-for="checkin in checkin_history">
+                                    <td>{{ checkin.name }}</td>
+                                    <td>{{ checkin.address }}</td>
+                                    <td>{{ checkin.date }}</td>
+                                    <td>{{ checkin.time }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <!-- Venue management page -->
+                <div v-else-if="page == 'manage-venues'">
+                    <h1>Manage Venues</h1>
+                    <hr />
+
+                    <!-- Controls to search for venues -->
+                    <form class="pure-form pure-g" onsubmit="return searchVenue();">
+                        <div class="pure-u-1 pure-u-md-1-2">
+                            <label for="venue-search-term">Search Term</label>
+                            <br />
+                            <input id="venue-search-term" type="search" v-model="search_data_venue.term" name="venue-search-term" class="pure-u-1" />
+                        </div>
+                        <div class="pure-u-1 pure-u-md-1-4">
+                            <label for="venue-search-by">Search By</label>
+                            <br />
+                            <select id="venue-search-by" name="venue-search-by" class="pure-u-1" v-model="search_data_venue.by">
+                                <option value="name">Venue Name</option>
+                                <option value="streetName">Street Name</option>
+                                <option value="city">Town/City</option>
+                                <option value="postcode">Postcode</option>
+                                <option value="state">State</option>
+                            </select>
+                        </div>
+                        <div class="pure-u-1 pure-u-md-1-4">
+                            <br />
+                            <input class="pure-button pure-button-primary pure-u-1" type="submit" value="Search" />
+                        </div>
+                    </form>
+                    <hr />
+
+                    <!-- Display venues meeting the search criteria in a table -->
+                    <table class="pure-table pure-table-striped full-width">
+                        <tr>
+                            <th>Name</th>
+                            <th>Street Number</th>
+                            <th>Street Name</th>
+                            <th>Town/City</th>
+                            <th>Postcode</th>
+                            <th>State</th>
+                            <th>Management</th>
+                        </tr>
+                        <tr v-for="(venue, index) in venues">
+                            <td>{{ venue.name }}</td>
+                            <td>{{ venue.streetNo }}</td>
+                            <td>{{ venue.streetName }}</td>
+                            <td>{{ venue.city }}</td>
+                            <td>{{ venue.postcode }}</td>
+                            <td>{{ venue.state }}</td>
+                            <td>
+                                <button class="pure-button" v-on:click="manage_venue(index)">Manage</button>
+                                <button class="pure-button" v-on:click="view_venue_checkin_history(venue.venue_id)">Check-in History</button>
+                                <button class="pure-button" v-on:click="view_owner(venue.venue_id)">Owner</button>
+                                <button class="pure-button" v-on:click="create_hotspot_venue(venue.venue_id)">Create Hotspot</button>
+                            </td>
+                        </tr>
+                    </table>
+                    <hr />
+
+                    <!-- Controls to set the number and page of venues displayed on the page -->
+                    <form class="pure-form pure-g" onsubmit="return false;">
+                        <div class="pure-u-1">
+                            <input id="user-page-size" class="right" name="user-page-size" type="number" v-model="page_size" onchange="setVenuePage(0)" min="1"  max="100" />
+                            <label for="user-page-size" class="right">Results per Page: </label>
+                        </div>
+
+                        <div class="pure-u-1-5"></div>
+                        <button type="button" class="pure-button pure-u-1-5" onclick="setVenuePage(-1)">&lt;</button>
+                        <input class="pure-u-1-5" type="number" v-model="pg" onchange="setVenuePage(0)" min="1" />
+                        <button type="button" class="pure-button pure-u-1-5" onclick="setVenuePage(1)">&gt;</button>
+                        <div class="pure-u-1-5"></div>
+                    </form>
+
+                    <!-- Display contact details for the owner of the selected venue -->
+                    <div class="darken-background" v-if="viewing_owner">
+                        <div class="details-form popup-card">
+                            <h1 class="left">Venue Owner</h1>
+                            <button class="pure-button right close" onclick="stopViewingOwner();">X</button>
+                            <form class="pure-form pure-g clear-float" onsubmit="return stopViewingOwner();">
+                                <div class="pure-u-1 pure-u-md-1-2">
+                                    <div class="grid-pad">
+                                        <label for="manage-owner-given-name">Given Name</label>
+                                        <input id="manage-owner-given-name" name="manage-owner-given-name" type="text" class="full-width" v-model="owner.givenName" readonly />
+                                    </div>
+                                </div>
+                                <div class="pure-u-1 pure-u-md-1-2">
+                                    <div class="grid-pad">
+                                        <label for="manage-owner-family-name">Family Name</label>
+                                        <input id="manage-owner-family-name" name="manage-owner-family-name" type="text" class="full-width" v-model="owner.familyName" readonly />
+                                    </div>
+                                </div>
+
+                                <div class="pure-u-1" >
+                                    <div class="grid-pad">
+                                         <label for="manage-owner-email">Email</label>
+                                         <input id="manage-owner-email" name="manage-owner-email" type="email" class="full-width" v-model="owner.email" readonly />
+                                     </div>
+                                </div>
+
+                                <div class="pure-u-1">
+                                    <div class="grid-pad">
+                                        <label for="manage-owner-phone">Phone</label>
+                                        <input id="manage-owner-phone" name="manage-owner-phone" type="tel" class="full-width" v-model="owner.phone" readonly />
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Display the details of the selected venue -->
+                    <div class="darken-background" v-if="managing_venue">
+                        <div class="details-form popup-card">
+                            <h1 class="left">Venue Details</h1>
+                            <button class="pure-button right close" onclick="stopManagingVenue();">X</button>
+                            <form class="pure-form pure-g clear-float" onsubmit="return updateVenueDetails();">
+                                <div class="pure-u-1">
+                                    <div class="grid-pad">
+                                        <label for="manage-venue-name">Venue Name</label>
+                                        <input id="manage-venue-name" name="manage-venue-name" type="text" class="full-width" v-model="active_venue.name" required />
+                                    </div>
+                                </div>
+                                <div class="pure-u-1 pure-u-md-1-4">
+                                    <div class="grid-pad">
+                                        <label for="manage-venue-street-no">Street Number</label>
+                                        <input id="manage-venue-street-no" name="manage-venue-street-no" type="text" class="full-width" v-model="active_venue.streetNo" required />
+                                    </div>
+                                </div>
+
+                                <div class="pure-u-1 pure-u-md-3-4" >
+                                    <div class="grid-pad">
+                                        <label for="manage-venue-street-name">Street Name</label>
+                                        <input id="manage-venue-street-name" name="manage-venue-street-name" type="text" class="full-width" v-model="active_venue.streetName" required />
+                                     </div>
+                                </div>
+
+                                <div class="pure-u-1 pure-u-md-1-2">
+                                    <div class="grid-pad">
+                                        <label for="manage-venue-city">Town/City</label>
+                                        <input id="manage-venue-city" name="manage-venue-city" type="text" class="full-width" v-model="active_venue.city" required />
+                                    </div>
+                                </div>
+
+                                <div class="pure-u-1 pure-u-md-1-4">
+                                    <div class="grid-pad">
+                                        <label for="manage-venue-postcode">Postcode</label>
+                                        <input id="manage-venue-postcode" name="manage-venue-postcode" type="number" class="full-width" v-model="active_venue.postcode" required />
+                                    </div>
+                                </div>
+
+                                <div class="pure-u-1 pure-u-md-1-4">
+                                    <div class="grid-pad">
+                                        <label for="manage-venue-state">State</label>
+                                        <select id="manage-venue-state" name="manage-venue-state" class="full-width" v-model="active_venue.state">
+                                            <option disabled value="">Please Select One</option>
+                                            <option value="ACT">Australian Capital Territory</option>
+                                            <option value="NSW">New South Wales</option>
+                                            <option value="NT">Northern Territory</option>
+                                            <option value="QLD">Queensland</option>
+                                            <option value="SA">South Australia</option>
+                                            <option value="TAS">Tasmania</option>
+                                            <option value="VIC">Victoria</option>
+                                            <option value="WA">Western Australia</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="pure-u-1">
+                                    <div class="grid-pad">
+                                        <button class="pure-button pure-button-primary right">Apply Changes</button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Display the check-ins for the selected venue -->
+                    <div class="darken-background" v-if="viewing_checkins">
+                        <div class="details-form popup-card">
+                            <h1 class="left">Venue Check-in History</h1>
+                            <button class="pure-button right close" onclick="stopViewingCheckins();">X</button>
+                            <table class="pure-table pure-table-striped full-width">
+                                <tr>
+                                    <th>Given Name</th>
+                                    <th>Family Name</th>
+                                    <th>Date</th>
+                                    <th>Time</th>
+                                </tr>
+                                <tr v-for="checkin in checkin_history">
+                                    <td>{{ checkin.givenName }}</td>
+                                    <td>{{ checkin.familyName }}</td>
+                                    <td>{{ checkin.date }}</td>
+                                    <td>{{ checkin.time }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Show controls to create a hotspot declaration at the selected venue -->
+                    <div class="darken-background" v-if="creating_hotspot_venue">
+                        <div class="details-form popup-card">
+                            <h1 class="left">Create Hotspot</h1>
+                            <button class="pure-button right close" onclick="stopCreatingHotspotVenue();">X</button>
+                            <form class="pure-form pure-g clear-float" onsubmit="return submitHotspotVenue();">
+                                <div class="pure-u-1 pure-u-md-1-2">
+                                    <div class="grid-pad">
+                                        <label for="hotspot-venue-start-date">Start Date</label>
+                                        <input id="hotspot-venue-start-date" name="hotspot-venue-start-date" type="date" class="full-width" v-model="hotspot_venue_details.start_date" />
+                                    </div>
+                                </div>
+                                <div class="pure-u-1 pure-u-md-1-2">
+                                    <div class="grid-pad">
+                                        <label for="hotspot-venue-start-time">Start Time</label>
+                                        <input id="hotspot-venue-start-time" name="hotspot-venue-start-time" type="time" class="full-width" v-model="hotspot_venue_details.start_time" />
+                                    </div>
+                                </div>
+                                <div class="pure-u-1 pure-u-md-1-2">
+                                    <div class="grid-pad">
+                                        <label for="hotspot-venue-end-date">End Date</label>
+                                        <input id="hotspot-venue-end-date" name="hotspot-venue-end-date" type="date" class="full-width" v-model="hotspot_venue_details.end_date" />
+                                    </div>
+                                </div>
+                                <div class="pure-u-1 pure-u-md-1-2">
+                                    <div class="grid-pad">
+                                        <label for="hotspot-venue-end-time">End Time</label>
+                                        <input id="hotspot-venue-end-time" name="hotspot-venue-end-time" type="time" class="full-width" v-model="hotspot_venue_details.end_time" />
+                                    </div>
+                                </div>
+
+                                <div class="pure-u-1">
+                                    <div class="grid-pad">
+                                        <input type="submit" class="pure-button pure-button-primary right" value="Create Hotspot" />
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <!-- Health official registration page -->
+                <div v-else-if="getHealthOfficialRegistration">
+                    <h1>Register Health Official</h1>
+                    <hr />
+
+                    <!-- Form to enter email address of the new health official -->
+                    <form class="pure-form pure-g details-form" onsubmit="return registerHealthOfficial();">
+                        <div class="pure-u-1">
+                            <div class="grid-pad">
+                                <label for="health-official-email">Email Address</label>
+                                <input id="health-official-email" name="health-official-email" type="email" class="full-width" v-model="admin_email" />
+                            </div>
+                        </div>
+
+                        <div class="pure-u-1">
+                            <div class="grid-pad">
+                                <button class="pure-button pure-button-primary right">Send Registration Instructions</button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <hr />
+
+                    <!-- Display the email addresses of all pending health officials in a table -->
+                    <table class="pure-table pure-table-striped full-width">
+                        <tr>
+                            <th>Email</th>
+                            <th>Manage</th>
+                        </tr>
+                        <tr v-for="admin in pending">
+                            <td>{{ admin.email }}</td>
+                            <td>
+                                <button class="pure-button close" v-on:click="cancelPendingRegistration(admin.email);">X</button>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                <!-- If no other pages, or an invalid page is selected, display the dashboard page -->
+                <div v-else-if="page != 'hotspots' && page != 'check-in-history'">
+                    <h1>Dashboard</h1>
+                    <hr />
+                    <div class="pure-g">
+                        <div class="pure-u-1 pure-u-md-1" v-cloak>
+                            <div class="dashboard-card">
+                                <i class="fas fa-clipboard-check notification-icon good left"></i><div class="left"><p>Looking to check-in to a venue?<br /><a href="/#/check-in">Check-in Now</a></p></div>
+                            </div>
+                        </div>
+
+                        <!-- Notify the user whether or not they have been to an active hotspot -->
+                        <div class="pure-u-1 pure-u-md-1" v-cloak>
+                            <div class="dashboard-card" v-if="hotspot_visit == 0">
+                                <i class="far fa-check-circle notification-icon good left"></i><div class="left"><p>You have not been to an active COVID-19 hotspot.</p></div>
+                            </div>
+                            <div class="dashboard-card" v-else-if="hotspot_visit == 1">
+                                <p><i class="fas fa-exclamation-triangle notification-icon bad"></i>You have been to a COVID-19 hotspot venue. Please isolate immediately and wait for our contact tracers to get in touch with you.</p>
+                            </div>
+                        </div>
+
+                        <!-- Display the latest active and total COVID-19 case numbers for each state -->
+                        <div class="pure-u-1 pure-u-md-1-3" v-if="settings.dashCases">
+                            <div class="dashboard-card">
+                                <h2>Cases</h2>
+                                <hr />
+                                <table class="pure-table pure-table-striped full-width">
+                                    <tr>
+                                        <th>State</th>
+                                        <th>Active</th>
+                                        <th>Total</th>
+                                    </tr>
+                                    <tr v-for="record in cases" v-cloak>
+                                        <td>{{ record.state }}</td>
+                                        <td>{{ record.active }}</td>
+                                        <td>{{ record.total }}</td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                        <!-- Display recent and total COVID-19 deaths for each state -->
+                        <div class="pure-u-1 pure-u-md-1-3" v-if="settings.dashDeaths">
+                            <div class="dashboard-card">
+                                <h2>Deaths</h2>
+                                <hr />
+                                <table class="pure-table pure-table-striped full-width">
+                                    <tr>
+                                        <th>State</th>
+                                        <th>This Week</th>
+                                        <th>Total</th>
+                                    </tr>
+                                    <tr v-for="record in deaths" v-cloak>
+                                        <td>{{ record.state }}</td>
+                                        <td>{{ record.active }}</td>
+                                        <td>{{ record.total }}</td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                        <!-- Display links to official government websites for each state in Australia -->
+                        <div class="pure-u-1 pure-u-md-1-3" v-if="settings.dashInfo">
+                            <div class="dashboard-card">
+                                <h2>Important Info</h2>
+                                <hr />
+                                <p>Access official government COVID-19 information and advice for your state.</p>
+                                <table class="pure-table pure-table-striped full-width">
+                                    <tr v-for="record in info" v-cloak>
+                                        <td><a v-bind:href="record.url">{{ record.state }}</a></td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+            <footer>
+                <span class="copyright">&copy; 2021 WDC UG Group 18</span>
+            </footer>
+        </div>
+    </div>
+</body>
+</html>
